@@ -19,6 +19,7 @@ public class IngestionController : ControllerBase
     private readonly IMetadataExtractor _metadataExtractor;
     private readonly FileStorageService _fileStorageService;
     private readonly SecurityHelper _securityHelper;
+    private readonly GeminiFallbackService _geminiService;
     private readonly AppDbContext _dbContext;
 
     public IngestionController(
@@ -26,12 +27,14 @@ public class IngestionController : ControllerBase
         IMetadataExtractor metadataExtractor,
         FileStorageService fileStorageService,
         SecurityHelper securityHelper,
+        GeminiFallbackService geminiService,
         AppDbContext dbContext)
     {
         _strategyResolver = strategyResolver;
         _metadataExtractor = metadataExtractor;
         _fileStorageService = fileStorageService;
         _securityHelper = securityHelper;
+        _geminiService = geminiService;
         _dbContext = dbContext;
     }
 
@@ -113,6 +116,22 @@ public class IngestionController : ControllerBase
 
             // 4. Heuristic Metadata Extraction & Normalization
             ExtractedMetadata extractedMetadata = _metadataExtractor.ExtractMetadata(rawText);
+
+            // Trigger Gemini Cloud Fallback if local extraction is low-confidence (no line items and no dynamic attributes)
+            bool isExtractionLowConfidence = extractedMetadata.LineItems.Count == 0 &&
+                                             extractedMetadata.Attributes.Count == 0;
+
+            if (isExtractionLowConfidence && _geminiService.IsConfigured)
+            {
+                Console.WriteLine($"[PIPELINE INFO] Local heuristics returned empty fields for {file.FileName}. Triggering Gemini fallback...");
+                using var fileStreamCopy = file.OpenReadStream();
+                var fallbackMetadata = await _geminiService.ExtractMetadataAsync(rawText, fileStreamCopy, detectedMimeType);
+                if (fallbackMetadata != null)
+                {
+                    Console.WriteLine($"[PIPELINE INFO] Gemini fallback successfully parsed metadata for {file.FileName}.");
+                    extractedMetadata = fallbackMetadata;
+                }
+            }
 
             // Encrypt reference number (holds Aadhar ID or Invoice numbers) and compute blind index
             string? encryptedRef = string.IsNullOrWhiteSpace(extractedMetadata.ReferenceNumber)

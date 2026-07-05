@@ -29,6 +29,7 @@ builder.Services.AddSingleton<IngestionStrategyResolver>();
 builder.Services.AddSingleton<IMetadataExtractor, MetadataExtractor>();
 builder.Services.AddSingleton<FileStorageService>();
 builder.Services.AddSingleton<SecurityHelper>();
+builder.Services.AddHttpClient<GeminiFallbackService>();
 
 var app = builder.Build();
 

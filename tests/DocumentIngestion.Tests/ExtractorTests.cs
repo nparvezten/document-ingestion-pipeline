@@ -53,4 +53,27 @@ public class ExtractorTests
         Assert.Null(result.TotalAmount);
         Assert.Empty(result.LineItems);
     }
+
+    [Fact]
+    public void ExtractMetadata_AadharCardText_ExtractsAadharDetails()
+    {
+        string mockAadharText = @"
+            GOVERNMENT OF INDIA
+            To,
+            Parvez Khan Abdul Rashid
+            DOB: 14/09/1984
+            Male
+            
+            1234 5678 9012
+            Aadhaar - Mera Adhikar
+        ";
+
+        var result = _extractor.ExtractMetadata(mockAadharText);
+
+        Assert.NotNull(result);
+        Assert.Equal("1984-09-14", result.DocumentDate);
+        Assert.Equal("1234 5678 9012", result.ReferenceNumber);
+        Assert.Null(result.TotalAmount);
+        Assert.Empty(result.LineItems);
+    }
 }

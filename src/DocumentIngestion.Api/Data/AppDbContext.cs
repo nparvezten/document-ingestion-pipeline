@@ -26,12 +26,14 @@ public class AppDbContext : DbContext
             entity.Property(e => e.FileType).HasColumnName("file_type").IsRequired();
             entity.Property(e => e.ExtractedDate).HasColumnName("extracted_date");
             
-            // Add Index to Reference Number as per specification
+            // ReferenceNumber is encrypted, so we index the deterministic ReferenceNumberBlindIndex instead
             entity.Property(e => e.ReferenceNumber).HasColumnName("reference_number");
-            entity.HasIndex(e => e.ReferenceNumber);
+            entity.Property(e => e.ReferenceNumberBlindIndex).HasColumnName("reference_number_blind_index");
+            entity.HasIndex(e => e.ReferenceNumberBlindIndex);
 
             entity.Property(e => e.TotalAmount).HasColumnName("total_amount");
             entity.Property(e => e.ProcessedAt).HasColumnName("processed_at").IsRequired();
+            entity.Property(e => e.AttributesJson).HasColumnName("extracted_attributes_json");
 
             // Configure One-to-Many Relationship with Cascade Delete
             entity.HasMany(d => d.LineItems)

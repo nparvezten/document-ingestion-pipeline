@@ -8,6 +8,7 @@ public class ExtractedMetadata
     public string? ReferenceNumber { get; set; }
     public double? TotalAmount { get; set; }
     public List<ExtractedLineItem> LineItems { get; set; } = new();
+    public Dictionary<string, string> Attributes { get; set; } = new();
 }
 
 public class ExtractedLineItem

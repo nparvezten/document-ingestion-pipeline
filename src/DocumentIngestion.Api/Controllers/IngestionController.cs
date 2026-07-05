@@ -18,17 +18,20 @@ public class IngestionController : ControllerBase
     private readonly IngestionStrategyResolver _strategyResolver;
     private readonly IMetadataExtractor _metadataExtractor;
     private readonly FileStorageService _fileStorageService;
+    private readonly SecurityHelper _securityHelper;
     private readonly AppDbContext _dbContext;
 
     public IngestionController(
         IngestionStrategyResolver strategyResolver,
         IMetadataExtractor metadataExtractor,
         FileStorageService fileStorageService,
+        SecurityHelper securityHelper,
         AppDbContext dbContext)
     {
         _strategyResolver = strategyResolver;
         _metadataExtractor = metadataExtractor;
         _fileStorageService = fileStorageService;
+        _securityHelper = securityHelper;
         _dbContext = dbContext;
     }
 
@@ -111,14 +114,25 @@ public class IngestionController : ControllerBase
             // 4. Heuristic Metadata Extraction & Normalization
             ExtractedMetadata extractedMetadata = _metadataExtractor.ExtractMetadata(rawText);
 
+            // Encrypt reference number (holds Aadhar ID or Invoice numbers) and compute blind index
+            string? encryptedRef = string.IsNullOrWhiteSpace(extractedMetadata.ReferenceNumber)
+                ? null
+                : _securityHelper.Encrypt(extractedMetadata.ReferenceNumber);
+
+            string? blindIndex = string.IsNullOrWhiteSpace(extractedMetadata.ReferenceNumber)
+                ? null
+                : _securityHelper.ComputeBlindIndex(extractedMetadata.ReferenceNumber);
+
             // 5. Database Save (SQLite)
             var document = new Document
             {
                 FileName = file.FileName,
                 FileType = detectedMimeType,
                 ExtractedDate = extractedMetadata.DocumentDate,
-                ReferenceNumber = extractedMetadata.ReferenceNumber,
+                ReferenceNumber = encryptedRef,
+                ReferenceNumberBlindIndex = blindIndex,
                 TotalAmount = extractedMetadata.TotalAmount,
+                AttributesJson = System.Text.Json.JsonSerializer.Serialize(extractedMetadata.Attributes),
                 ProcessedAt = DateTime.UtcNow
             };
 

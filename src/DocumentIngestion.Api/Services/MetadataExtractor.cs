@@ -30,6 +30,14 @@ public class MetadataExtractor : IMetadataExtractor
         @"^\s*\|?\s*(.*?)\s+(\d+)\s+([0-9,]+\.[0-9]{2})\s+([0-9,]+\.[0-9]{2})\s*\|?\s*$",
         RegexOptions.Compiled | RegexOptions.IgnoreCase);
 
+    private static readonly Regex AadharNumberRegex = new(
+        @"\b(\d{4}[\s\-]{1,2}\d{4}[\s\-]{1,2}\d{4}|\d{12})\b",
+        RegexOptions.Compiled);
+
+    private static readonly Regex AadharDobRegex = new(
+        @"(?i)(?:dob|date\s+of\s+birth|yob|year\s+of\s+birth|birth\s+date)[:\-\s]*([0-9a-zA-Z\s,\-/]{4,20})",
+        RegexOptions.Compiled);
+
     public ExtractedMetadata ExtractMetadata(string rawText)
     {
         var metadata = new ExtractedMetadata();
@@ -38,6 +46,12 @@ public class MetadataExtractor : IMetadataExtractor
 
         // Clean raw text (normalize newlines, remove redundant whitespaces)
         string cleanedText = CleanText(rawText);
+
+        // Classify Aadhar Card vs. standard Business Invoice
+        if (IsAadharCard(cleanedText))
+        {
+            return ExtractAadharMetadata(cleanedText);
+        }
 
         // 1. Extract Date
         metadata.DocumentDate = ExtractDate(cleanedText);
@@ -51,7 +65,139 @@ public class MetadataExtractor : IMetadataExtractor
         // 4. Extract Line Items
         metadata.LineItems = ExtractLineItems(cleanedText);
 
+        // 5. Extract Generic Attributes
+        metadata.Attributes = ExtractGenericAttributes(cleanedText);
+
         return metadata;
+    }
+
+    private bool IsAadharCard(string text)
+    {
+        string normalized = text.ToLowerInvariant();
+        return normalized.Contains("aadhaar") ||
+               normalized.Contains("aadhar") ||
+               normalized.Contains("uidai") ||
+               normalized.Contains("government of india") ||
+               normalized.Contains("govt. of india") ||
+               normalized.Contains("govt of india") ||
+               normalized.Contains("unique identification") ||
+               AadharNumberRegex.IsMatch(text);
+    }
+
+    private ExtractedMetadata ExtractAadharMetadata(string text)
+    {
+        var metadata = new ExtractedMetadata();
+
+        // 1. Extract Aadhaar ID (Reference Number)
+        var numMatch = AadharNumberRegex.Match(text);
+        if (numMatch.Success)
+        {
+            metadata.ReferenceNumber = numMatch.Groups[1].Value.Trim();
+        }
+
+        // 2. Extract DOB (Document Date)
+        var dobMatch = AadharDobRegex.Match(text);
+        if (dobMatch.Success)
+        {
+            string dobStr = dobMatch.Groups[1].Value.Trim();
+            if (TryParseAndNormalizeDate(dobStr, out string normalized))
+            {
+                metadata.DocumentDate = normalized;
+            }
+            else if (Regex.IsMatch(dobStr, @"^\d{4}$"))
+            {
+                metadata.DocumentDate = $"{dobStr}-01-01";
+            }
+        }
+        else
+        {
+            metadata.DocumentDate = ExtractDate(text);
+        }
+
+        metadata.TotalAmount = null;
+        metadata.LineItems = new List<ExtractedLineItem>();
+
+        // 3. Extract generic attributes (District, State, PIN, Mobile, etc.)
+        metadata.Attributes = ExtractGenericAttributes(text);
+
+        // 4. Capture gender
+        if (text.Contains("female", StringComparison.OrdinalIgnoreCase))
+        {
+            metadata.Attributes["Gender"] = "Female";
+        }
+        else if (text.Contains("male", StringComparison.OrdinalIgnoreCase))
+        {
+            metadata.Attributes["Gender"] = "Male";
+        }
+
+        // 5. Try to find the name of the individual
+        var name = FindAadharName(text);
+        if (!string.IsNullOrEmpty(name))
+        {
+            metadata.Attributes["Name"] = name;
+        }
+
+        // Ensure Aadhaar number is present in attributes
+        if (!string.IsNullOrEmpty(metadata.ReferenceNumber))
+        {
+            metadata.Attributes["Aadhaar Number"] = metadata.ReferenceNumber;
+        }
+
+        return metadata;
+    }
+
+    private Dictionary<string, string> ExtractGenericAttributes(string text)
+    {
+        var attributes = new Dictionary<string, string>();
+        var lines = text.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        
+        foreach (var line in lines)
+        {
+            var separatorIndex = line.IndexOfAny(new[] { ':', '=' });
+            if (separatorIndex > 0 && separatorIndex < line.Length - 1)
+            {
+                string key = line.Substring(0, separatorIndex).Trim();
+                string val = line.Substring(separatorIndex + 1).Trim();
+                
+                if (key.Length >= 2 && key.Length <= 30 && !key.Contains("<") && !key.Contains(">") && !key.Contains("{"))
+                {
+                    string cleanKey = NormalizeKey(key);
+                    if (!attributes.ContainsKey(cleanKey) && !string.IsNullOrWhiteSpace(val))
+                    {
+                        attributes[cleanKey] = val;
+                    }
+                }
+            }
+        }
+        
+        return attributes;
+    }
+
+    private string NormalizeKey(string key)
+    {
+        string cleaned = Regex.Replace(key, @"[^\w\s\.]", "").Trim();
+        if (string.IsNullOrWhiteSpace(cleaned))
+            return key;
+            
+        return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(cleaned.ToLowerInvariant());
+    }
+
+    private string? FindAadharName(string text)
+    {
+        var lines = text.Split(new[] { '\n', '\r' }, StringSplitOptions.RemoveEmptyEntries);
+        for (int i = 0; i < lines.Length; i++)
+        {
+            string currentLine = lines[i].Trim();
+            if (AadharDobRegex.IsMatch(currentLine) && i > 0)
+            {
+                string prevLine = lines[i - 1].Trim();
+                if (prevLine.Length > 3 && Regex.IsMatch(prevLine, @"^[a-zA-Z\s]+$"))
+                {
+                    return CultureInfo.InvariantCulture.TextInfo.ToTitleCase(prevLine.ToLowerInvariant());
+                }
+            }
+        }
+        return null;
     }
 
     private string CleanText(string text)

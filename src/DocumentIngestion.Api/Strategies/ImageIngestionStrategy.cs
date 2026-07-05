@@ -82,7 +82,7 @@ public class ImageIngestionStrategy : IIngestionStrategy
             var startInfo = new ProcessStartInfo
             {
                 FileName = tesseractPath,
-                Arguments = $"\"{imagePath}\" stdout",
+                Arguments = $"\"{imagePath}\" stdout --psm 1",
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 UseShellExecute = false,

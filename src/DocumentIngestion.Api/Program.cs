@@ -28,6 +28,7 @@ builder.Services.AddSingleton<IIngestionStrategy>(sp => new ImageIngestionStrate
 builder.Services.AddSingleton<IngestionStrategyResolver>();
 builder.Services.AddSingleton<IMetadataExtractor, MetadataExtractor>();
 builder.Services.AddSingleton<FileStorageService>();
+builder.Services.AddSingleton<SecurityHelper>();
 
 var app = builder.Build();
 

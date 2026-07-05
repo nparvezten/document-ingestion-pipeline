@@ -73,7 +73,7 @@
 
         @media (min-width: 900px) {
             main {
-                grid-template-columns: 450px 1fr;
+                grid-template-columns: 380px 1fr;
             }
         }
 
@@ -91,6 +91,7 @@
             display: flex;
             flex-direction: column;
             gap: 1.5rem;
+            min-width: 0;
         }
 
         h2 {
@@ -227,6 +228,7 @@
             display: flex;
             flex-direction: column;
             gap: 1.5rem;
+            min-width: 0;
         }
 
         .placeholder-results {
@@ -325,6 +327,8 @@
             overflow-x: auto;
             color: #34d399;
             max-height: 250px;
+            white-space: pre-wrap;
+            word-break: break-all;
         }
 
         .progress-bar-container {
@@ -421,21 +425,23 @@
                     </div>
                 </div>
 
-                <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: #d1d5db;">Line Items</h3>
-                <div class="table-container">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th>Description</th>
-                                <th>Qty</th>
-                                <th>Unit Price</th>
-                                <th>Total</th>
-                            </tr>
-                        </thead>
-                        <tbody id="res-table-body">
-                            <!-- Populated dynamically -->
-                        </tbody>
-                    </table>
+                <div id="line-items-container">
+                    <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: #d1d5db;">Line Items</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Description</th>
+                                    <th>Qty</th>
+                                    <th>Unit Price</th>
+                                    <th>Total</th>
+                                </tr>
+                            </thead>
+                            <tbody id="res-table-body">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <div class="json-header">
@@ -610,15 +616,54 @@
             resultsContent.style.display = 'block';
 
             const meta = data.extractedMetadata;
-            resDate.textContent = meta.documentDate || 'N/A';
-            resRef.textContent = meta.referenceNumber || 'N/A';
-            resTotal.textContent = meta.totalAmount ? `$${meta.totalAmount.toFixed(2)}` : 'N/A';
-
             resUuid.textContent = `UUID: ${data.documentId}`;
 
-            // Populate table
+            // Clear and dynamically populate the metadata card grid
+            const metaGrid = document.querySelector('.meta-grid');
+            metaGrid.innerHTML = '';
+
+            const fields = [
+                { label: 'Document Date', value: meta.documentDate || 'N/A' },
+                { label: 'Reference Number', value: meta.referenceNumber || 'N/A' }
+            ];
+
+            // Render Total Amount card only if it is present or if we have line items (implying an invoice layout)
+            if (meta.totalAmount !== null || (meta.lineItems && meta.lineItems.length > 0)) {
+                fields.push({
+                    label: 'Total Amount',
+                    value: meta.totalAmount !== null ? `$${meta.totalAmount.toFixed(2)}` : 'N/A',
+                    isAmount: true
+                });
+            }
+
+            const camelCaseToWords = (str) => {
+                const result = str.replace(/([A-Z])/g, " $1");
+                return result.charAt(0).toUpperCase() + result.slice(1);
+            };
+
+            // Loop and add any custom dynamic metadata fields returned in the JSON payload
+            Object.keys(meta).forEach(key => {
+                if (key !== 'documentDate' && key !== 'referenceNumber' && key !== 'totalAmount' && key !== 'lineItems') {
+                    fields.push({ label: camelCaseToWords(key), value: meta[key] });
+                }
+            });
+
+            // Create DOM elements for cards
+            fields.forEach(f => {
+                const card = document.createElement('div');
+                card.className = 'meta-card';
+                card.innerHTML = `
+                    <div class="meta-label">${f.label}</div>
+                    <div class="meta-value" ${f.isAmount ? 'style="color: #60a5fa;"' : ''}>${f.value}</div>
+                `;
+                metaGrid.appendChild(card);
+            });
+
+            // Populate and toggle table visibility dynamically
+            const lineItemsContainer = document.getElementById('line-items-container');
             resTableBody.innerHTML = '';
             if (meta.lineItems && meta.lineItems.length > 0) {
+                lineItemsContainer.style.display = 'block';
                 meta.lineItems.forEach(item => {
                     const row = document.createElement('tr');
                     row.innerHTML = `
@@ -630,7 +675,7 @@
                     resTableBody.appendChild(row);
                 });
             } else {
-                resTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No line items extracted</td></tr>`;
+                lineItemsContainer.style.display = 'none';
             }
 
             // Display raw JSON

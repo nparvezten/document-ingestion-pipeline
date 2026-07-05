@@ -1,0 +1,641 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extensible Document Ingestion Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(17, 25, 40, 0.65);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --primary-glow: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            --accent-green: #10b981;
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+            background-image: 
+                radial-gradient(circle at 10% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+                radial-gradient(circle at 90% 80%, rgba(139, 92, 246, 0.08) 0%, transparent 40%);
+        }
+
+        header {
+            width: 100%;
+            max-width: 1200px;
+            padding: 2.5rem 1.5rem 1.5rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+            letter-spacing: -0.02em;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1rem;
+            font-weight: 400;
+        }
+
+        main {
+            width: 100%;
+            max-width: 1200px;
+            padding: 0 1.5rem 3rem;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2rem;
+        }
+
+        @media (min-width: 900px) {
+            main {
+                grid-template-columns: 450px 1fr;
+            }
+        }
+
+        .glass-panel {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+
+        .upload-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        h2 {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.4rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #f3f4f6;
+        }
+
+        .drop-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 12px;
+            padding: 3rem 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: rgba(255, 255, 255, 0.02);
+            position: relative;
+        }
+
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: #60a5fa;
+            background: rgba(59, 130, 246, 0.04);
+        }
+
+        .drop-zone-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            display: inline-block;
+        }
+
+        .drop-zone-text {
+            font-size: 0.95rem;
+            color: var(--text-main);
+            margin-bottom: 0.25rem;
+            font-weight: 500;
+        }
+
+        .drop-zone-info {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        .file-pill {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255, 255, 255, 0.05);
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            font-size: 0.9rem;
+        }
+
+        .file-name {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 250px;
+            color: #60a5fa;
+            font-weight: 500;
+        }
+
+        .remove-file {
+            cursor: pointer;
+            color: #ef4444;
+            font-weight: bold;
+            font-size: 1.1rem;
+            padding: 0 0.25rem;
+        }
+
+        .btn {
+            background: var(--primary-glow);
+            color: white;
+            border: none;
+            padding: 0.85rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.2s ease, transform 0.1s ease;
+            text-align: center;
+            box-shadow: 0 4px 14px 0 rgba(139, 92, 246, 0.3);
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn:active {
+            transform: scale(0.99);
+        }
+
+        .btn:disabled {
+            background: #1f2937;
+            color: #4b5563;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .status-ledger {
+            margin-top: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .badge {
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 0.75rem;
+        }
+
+        .badge-pending { background: #374151; color: #d1d5db; }
+        .badge-success { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+        .badge-error { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+        .results-section {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .placeholder-results {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 6rem 2rem;
+            color: var(--text-muted);
+            text-align: center;
+            border: 1px dashed rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+        }
+
+        .placeholder-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            opacity: 0.4;
+        }
+
+        .meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .meta-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+
+        .meta-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+        }
+
+        .meta-value {
+            font-size: 1.15rem;
+            font-weight: 600;
+            color: #f3f4f6;
+        }
+
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            margin-bottom: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.04);
+            color: var(--text-muted);
+            font-weight: 500;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        td {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+            color: #d1d5db;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .json-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        pre {
+            background: #060913;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            color: #34d399;
+            max-height: 250px;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 2px;
+            display: none;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0;
+            background: var(--primary-glow);
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Extensible Document Ingestion</h1>
+        <p class="subtitle">Upload unstructured layouts and extract database-ready metadata</p>
+    </header>
+
+    <main>
+        <!-- Left Column: Upload -->
+        <section class="glass-panel upload-section">
+            <h2>Ingress Channel</h2>
+            
+            <div class="drop-zone" id="file-drop-zone">
+                <span class="drop-zone-icon">📥</span>
+                <div class="drop-zone-text">Drag & drop your invoice here</div>
+                <div class="drop-zone-info">Supports PDF, DOCX, TXT, PNG, JPEG</div>
+                <input type="file" id="file-input" accept=".pdf,.docx,.txt,.png,.jpg,.jpeg">
+            </div>
+
+            <div class="file-pill" id="selected-file-pill">
+                <span class="file-name" id="selected-file-name">invoice_01.pdf</span>
+                <span class="remove-file" id="remove-file-btn">×</span>
+            </div>
+
+            <button class="btn" id="upload-btn" disabled>Process Document</button>
+
+            <div class="progress-bar-container" id="progress-container">
+                <div class="progress-bar" id="progress-fill"></div>
+            </div>
+
+            <div class="status-ledger">
+                <h2>Ingestion Ledger</h2>
+                <div class="status-item">
+                    <span>MIME Identification</span>
+                    <span class="badge badge-pending" id="mime-badge">PENDING</span>
+                </div>
+                <div class="status-item">
+                    <span>Parser Allocation</span>
+                    <span class="badge badge-pending" id="strategy-badge">PENDING</span>
+                </div>
+                <div class="status-item">
+                    <span>Relational Database Persistence</span>
+                    <span class="badge badge-pending" id="db-badge">PENDING</span>
+                </div>
+                <div class="status-item">
+                    <span>Minified Egress Storage</span>
+                    <span class="badge badge-pending" id="egress-badge">PENDING</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right Column: Results -->
+        <section class="glass-panel results-section">
+            <h2>Extraction Audit</h2>
+
+            <!-- Placeholder -->
+            <div class="placeholder-results" id="results-placeholder">
+                <span class="placeholder-icon">📊</span>
+                <p>Upload and process a document to view structural extraction fields.</p>
+            </div>
+
+            <!-- Content (Hidden initially) -->
+            <div id="results-content" style="display: none;">
+                <div class="meta-grid">
+                    <div class="meta-card">
+                        <div class="meta-label">Document Date</div>
+                        <div class="meta-value" id="res-date">--</div>
+                    </div>
+                    <div class="meta-card">
+                        <div class="meta-label">Reference Number</div>
+                        <div class="meta-value" id="res-ref">--</div>
+                    </div>
+                    <div class="meta-card">
+                        <div class="meta-label">Total Amount</div>
+                        <div class="meta-value" id="res-total" style="color: #60a5fa;">--</div>
+                    </div>
+                </div>
+
+                <h3 style="font-size: 1rem; font-weight: 600; margin-bottom: 0.5rem; color: #d1d5db;">Line Items</h3>
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Description</th>
+                                <th>Qty</th>
+                                <th>Unit Price</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody id="res-table-body">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="json-header">
+                    <h3 style="font-size: 1rem; font-weight: 600; color: #d1d5db;">Minified JSON Egress</h3>
+                    <span id="res-uuid" style="font-size: 0.75rem; color: var(--text-muted);">UUID: --</span>
+                </div>
+                <pre id="raw-json-output">{}</pre>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const dropZone = document.getElementById('file-drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const filePill = document.getElementById('selected-file-pill');
+        const fileNameSpan = document.getElementById('selected-file-name');
+        const removeFileBtn = document.getElementById('remove-file-btn');
+        const uploadBtn = document.getElementById('upload-btn');
+        const progressContainer = document.getElementById('progress-container');
+        const progressFill = document.getElementById('progress-fill');
+
+        const mimeBadge = document.getElementById('mime-badge');
+        const strategyBadge = document.getElementById('strategy-badge');
+        const dbBadge = document.getElementById('db-badge');
+        const egressBadge = document.getElementById('egress-badge');
+
+        const placeholder = document.getElementById('results-placeholder');
+        const resultsContent = document.getElementById('results-content');
+        
+        const resDate = document.getElementById('res-date');
+        const resRef = document.getElementById('res-ref');
+        const resTotal = document.getElementById('res-total');
+        const resTableBody = document.getElementById('res-table-body');
+        const resUuid = document.getElementById('res-uuid');
+        const rawJsonOutput = document.getElementById('raw-json-output');
+
+        let selectedFile = null;
+
+        // Click triggers file selector
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        // File Drag & Drop
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) {
+                handleFileSelect(e.dataTransfer.files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            selectedFile = file;
+            fileNameSpan.textContent = file.name;
+            dropZone.style.display = 'none';
+            filePill.style.display = 'flex';
+            uploadBtn.disabled = false;
+            resetLedger();
+        }
+
+        removeFileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            selectedFile = null;
+            fileInput.value = '';
+            filePill.style.display = 'none';
+            dropZone.style.display = 'block';
+            uploadBtn.disabled = true;
+            resetLedger();
+        });
+
+        function resetLedger() {
+            mimeBadge.textContent = 'PENDING';
+            mimeBadge.className = 'badge badge-pending';
+            strategyBadge.textContent = 'PENDING';
+            strategyBadge.className = 'badge badge-pending';
+            dbBadge.textContent = 'PENDING';
+            dbBadge.className = 'badge badge-pending';
+            egressBadge.textContent = 'PENDING';
+            egressBadge.className = 'badge badge-pending';
+        }
+
+        uploadBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+
+            uploadBtn.disabled = true;
+            progressContainer.style.display = 'block';
+            progressFill.style.width = '30%';
+
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+
+            try {
+                // Post to API Endpoint
+                const response = await fetch('/api/ingestion/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                progressFill.style.width = '70%';
+                const result = await response.json();
+                progressFill.style.width = '100%';
+
+                if (response.ok && result.success) {
+                    showSuccessLedger(result.fileType);
+                    displayResults(result);
+                } else {
+                    showErrorLedger(result.errorMessage || "Processing failed");
+                }
+            } catch (error) {
+                showErrorLedger(error.message || "Network error");
+            } finally {
+                setTimeout(() => {
+                    progressContainer.style.display = 'none';
+                    progressFill.style.width = '0';
+                    uploadBtn.disabled = false;
+                }, 1000);
+            }
+        });
+
+        function showSuccessLedger(fileType) {
+            mimeBadge.textContent = 'VERIFIED';
+            mimeBadge.className = 'badge badge-success';
+            
+            strategyBadge.textContent = getStrategyLabel(fileType);
+            strategyBadge.className = 'badge badge-success';
+            
+            dbBadge.textContent = 'SAVED';
+            dbBadge.className = 'badge badge-success';
+            
+            egressBadge.textContent = 'JSON GENERATED';
+            egressBadge.className = 'badge badge-success';
+        }
+
+        function showErrorLedger(errMessage) {
+            mimeBadge.textContent = 'FAILED';
+            mimeBadge.className = 'badge badge-error';
+            strategyBadge.textContent = 'ABORTED';
+            strategyBadge.className = 'badge badge-error';
+            dbBadge.textContent = 'ROLLED BACK';
+            dbBadge.className = 'badge badge-error';
+            egressBadge.textContent = 'EMPTY';
+            egressBadge.className = 'badge badge-error';
+
+            placeholder.style.display = 'flex';
+            resultsContent.style.display = 'none';
+            alert("Error Processing Document: " + errMessage);
+        }
+
+        function getStrategyLabel(mimeType) {
+            if (mimeType.includes('pdf')) return 'PDF STRATEGY';
+            if (mimeType.includes('word') || mimeType.includes('officedocument')) return 'DOCX STRATEGY';
+            if (mimeType.includes('png') || mimeType.includes('jpeg') || mimeType.includes('jpg')) return 'IMAGE OCR STRATEGY';
+            return 'TXT STRATEGY';
+        }
+
+        function displayResults(data) {
+            placeholder.style.display = 'none';
+            resultsContent.style.display = 'block';
+
+            const meta = data.extractedMetadata;
+            resDate.textContent = meta.documentDate || 'N/A';
+            resRef.textContent = meta.referenceNumber || 'N/A';
+            resTotal.textContent = meta.totalAmount ? `$${meta.totalAmount.toFixed(2)}` : 'N/A';
+
+            resUuid.textContent = `UUID: ${data.documentId}`;
+
+            // Populate table
+            resTableBody.innerHTML = '';
+            if (meta.lineItems && meta.lineItems.length > 0) {
+                meta.lineItems.forEach(item => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${item.description}</td>
+                        <td>${item.quantity}</td>
+                        <td>$${item.unitPrice.toFixed(2)}</td>
+                        <td style="font-weight: 500;">$${item.totalPrice.toFixed(2)}</td>
+                    `;
+                    resTableBody.appendChild(row);
+                });
+            } else {
+                resTableBody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted);">No line items extracted</td></tr>`;
+            }
+
+            // Display raw JSON
+            rawJsonOutput.textContent = JSON.stringify(data, null, 2);
+        }
+    </script>
+</body>
+</html>

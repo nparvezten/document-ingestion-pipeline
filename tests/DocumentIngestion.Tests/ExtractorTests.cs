@@ -76,4 +76,27 @@ public class ExtractorTests
         Assert.Null(result.TotalAmount);
         Assert.Empty(result.LineItems);
     }
+
+    [Fact]
+    public void ExtractMetadata_FuzzyAadharText_SuccessfullyClassifies()
+    {
+        string fuzzyAadharText = @"
+            G0VERNMET OF IND1A
+            To,
+            Parvez Khan Abdul Rashid
+            D0B: 14/09/1984
+            Male
+            
+            1234 5678 9012
+            Aadh@ar - Mera Adhikar
+        ";
+
+        var result = _extractor.ExtractMetadata(fuzzyAadharText);
+
+        Assert.NotNull(result);
+        Assert.Equal("1984-09-14", result.DocumentDate);
+        Assert.Equal("1234 5678 9012", result.ReferenceNumber);
+        Assert.Null(result.TotalAmount);
+        Assert.Empty(result.LineItems);
+    }
 }

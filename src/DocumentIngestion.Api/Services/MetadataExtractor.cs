@@ -73,14 +73,12 @@ public class MetadataExtractor : IMetadataExtractor
 
     private bool IsAadharCard(string text)
     {
-        string normalized = text.ToLowerInvariant();
-        return normalized.Contains("aadhaar") ||
-               normalized.Contains("aadhar") ||
-               normalized.Contains("uidai") ||
-               normalized.Contains("government of india") ||
-               normalized.Contains("govt. of india") ||
-               normalized.Contains("govt of india") ||
-               normalized.Contains("unique identification") ||
+        return FuzzyMatch(text, "aadhaar") ||
+               FuzzyMatch(text, "aadhar") ||
+               FuzzyMatch(text, "uidai") ||
+               (FuzzyMatch(text, "government") && FuzzyMatch(text, "india")) ||
+               (FuzzyMatch(text, "govt") && FuzzyMatch(text, "india")) ||
+               FuzzyMatch(text, "identification") ||
                AadharNumberRegex.IsMatch(text);
     }
 
@@ -356,5 +354,54 @@ public class MetadataExtractor : IMetadataExtractor
         }
 
         return items;
+    }
+
+    private static int LevenshteinDistance(string s, string t)
+    {
+        if (string.IsNullOrEmpty(s)) return t?.Length ?? 0;
+        if (string.IsNullOrEmpty(t)) return s.Length;
+
+        int n = s.Length;
+        int m = t.Length;
+        int[,] d = new int[n + 1, m + 1];
+
+        for (int i = 0; i <= n; d[i, 0] = i++) ;
+        for (int j = 0; j <= m; d[0, j] = j++) ;
+
+        for (int i = 1; i <= n; i++)
+        {
+            for (int j = 1; j <= m; j++)
+            {
+                int cost = (t[j - 1] == s[i - 1]) ? 0 : 1;
+                d[i, j] = Math.Min(
+                    Math.Min(d[i - 1, j] + 1, d[i, j - 1] + 1),
+                    d[i - 1, j - 1] + cost);
+            }
+        }
+        return d[n, m];
+    }
+
+    private static bool FuzzyMatch(string text, string target, double threshold = 0.8)
+    {
+        string normText = text.ToLowerInvariant();
+        string normTarget = target.ToLowerInvariant();
+
+        if (normText.Contains(normTarget))
+            return true;
+
+        var words = normText.Split(new[] { ' ', '\n', '\r', '\t', ',', '.', ':', '-', '/' }, StringSplitOptions.RemoveEmptyEntries);
+        foreach (var word in words)
+        {
+            if (word.Length < 3) continue;
+
+            int distance = LevenshteinDistance(word, normTarget);
+            double similarity = 1.0 - ((double)distance / Math.Max(word.Length, normTarget.Length));
+            if (similarity >= threshold)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 }

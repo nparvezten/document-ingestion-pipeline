@@ -1,0 +1,12 @@
+﻿INVOICE
+Invoice Date: 2026-06-15
+Invoice Number: INV-987654
+Due Date: 2026-07-15
+
+Description                    Qty    Unit Price    Total
+---------------------------------------------------------
+Premium SaaS Subscription       1        150.00    150.00
+Database Setup Consulting       5        120.00    600.00
+Cloud Storage Add-on            2         25.00     50.00
+---------------------------------------------------------
+TOTAL AMOUNT: 800.00
